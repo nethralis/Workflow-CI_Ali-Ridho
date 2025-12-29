@@ -37,7 +37,7 @@ jobs:
     # Ini akan mengambil folder 'mlruns' yang terbentuk dan upload ke GitHub
     - name: Archive MLflow Artifacts
       if: always() # Tetap jalan meskipun training error (buat debugging)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: hasil-eksperimen-mlruns
         path: MLProject/mlruns
