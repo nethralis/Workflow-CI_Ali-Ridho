@@ -20,24 +20,31 @@ jobs:
       with:
         python-version: '3.9'
 
-    # 3. Install Library (Sesuai conda.yaml tapi versi pip biar cepet)
+    # 3. Install Library
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install mlflow scikit-learn pandas
 
-    # 4. JALANKAN MODEL (Inti prosesnya)
-    # Kita masuk folder MLProject dulu, baru panggil scriptnya
-    - name: Run Training Script
+    # 4. JALANKAN MODEL (VERSI REVISI - WAJIB MLFLOW RUN)
+    - name: Train Model with MLflow
       run: |
-        cd MLProject
-        python modelling.py
+        # PENTING: Ganti 'Membangun_model' sesuai nama folder kamu di GitHub
+        # (Kalau nama foldermu masih 'MLProject', ganti jadi 'cd MLProject')
+        cd Membangun_model 
+        
+        # Perintah ini yang diminta reviewer:
+        mlflow run . \
+          -P train_data=bank_data_preprocessing.csv \
+          -P test_data=bank_data_preprocessing.csv \
+          -P target_column=Exited \
+          --env-manager=local
 
-    # 5. SIMPAN HASIL (Syarat Skilled - Upload Artefak)
-    # Ini akan mengambil folder 'mlruns' yang terbentuk dan upload ke GitHub
+    # 5. SIMPAN HASIL
     - name: Archive MLflow Artifacts
-      if: always() # Tetap jalan meskipun training error (buat debugging)
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: hasil-eksperimen-mlruns
-        path: MLProject/mlruns
+        # Sesuaikan path ini juga dengan nama foldermu
+        path: Membangun_model/mlruns
