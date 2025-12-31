@@ -1,63 +1,49 @@
+import mlflow
+import mlflow.sklearn
 import pandas as pd
-import os
+import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-import mlflow
 
-# --- CONFIG ---
-# Script akan otomatis cari file csv di folder yang sama
-INPUT_FILE = "bank_data_preprocessing.csv"
+# 1. Aktifkan Autolog
+# Autolog ini pintar, dia bakal otomatis nempel ke Run ID yang dibuat oleh 'mlflow run'
+mlflow.autolog()
 
-if __name__ == "__main__":
-    print(f"Mencari dataset: {INPUT_FILE} ...")
-    
-    # Cek apakah file ada (Anti-Error Path)
-    if not os.path.exists(INPUT_FILE):
-        print("ERROR FATAL: File csv tidak ditemukan!")
-        print(f"Pastikan file '{INPUT_FILE}' ada di sebelah file modelling.py ini.")
-        # Coba cek kalau user pakai nama lain
-        if os.path.exists("bank_data_clean.csv"):
-            print("Tapi ada file 'bank_data_clean.csv', pakai yang itu ya...")
-            INPUT_FILE = "bank_data_clean.csv"
-        else:
-            exit(1) # Matikan proses kalau file gak ada
+def main(train_data, test_data, target_column):
+    # Baca data dari parameter input
+    print(f"Loading data from: {train_data}")
+    df = pd.read_csv(train_data)
 
-    # 1. Load Data
-    df = pd.read_csv(INPUT_FILE)
-    print("Data loaded sukses!")
+    # Pisahkan Fitur dan Target
+    X = df.drop(columns=[target_column])
+    y = df[target_column]
 
-    # 2. Preprocessing & Split
-    # Otomatis deteksi target (jaga-jaga kalau nama kolom beda)
-    if 'TransactionType' in df.columns:
-        target = 'TransactionType'
-    else:
-        target = df.columns[-1] # Ambil kolom terakhir sebagai target
-
-    X = df.drop(columns=[target])
-    y = df[target]
-    
-    # Pakai data dikit aja biar GitHub Actions cepet kelar
-    if len(df) > 1000:
-        X = X.iloc[:1000]
-        y = y.iloc[:1000]
-
+    # Split Data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # 3. MLflow Tracking
-    mlflow.set_experiment("Automated_CI_Run")
+    # --- BAGIAN YANG DIPERBAIKI (HAPUS start_run) ---
+    # Kita langsung training aja. Karena script ini dijalankan via 'mlflow run',
+    # dia otomatis sudah punya Active Run. Gak perlu bikin baru.
+    
+    print("Starting training...")
+    model = RandomForestClassifier(n_estimators=100)
+    model.fit(X_train, y_train)
 
-    with mlflow.start_run():
-        print("Mulai Training...")
-        
-        rf = RandomForestClassifier(n_estimators=10, random_state=42)
-        rf.fit(X_train, y_train)
-        
-        acc = accuracy_score(y_test, rf.predict(X_test))
-        print(f"Akurasi: {acc:.4f}")
+    # Evaluasi
+    predictions = model.predict(X_test)
+    acc = accuracy_score(y_test, predictions)
+    print(f"Model Accuracy: {acc}")
+    
+    # KITA TIDAK PERLU mlflow.log_metric manual karena sudah ada mlflow.autolog()
+    # Tapi kalau mau nambah log manual, langsung aja panggil (gak usah pake with start_run)
+    mlflow.log_metric("manual_accuracy", acc)
 
-        # Log Metrics & Model (Syarat Skilled)
-        mlflow.log_metric("accuracy", acc)
-        mlflow.sklearn.log_model(rf, "model_random_forest")
-        
-        print("Training Selesai. Artefak tersimpan.")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train_data", type=str)
+    parser.add_argument("--test_data", type=str)
+    parser.add_argument("--target_column", type=str)
+    args = parser.parse_args()
+
+    main(args.train_data, args.test_data, args.target_column)
