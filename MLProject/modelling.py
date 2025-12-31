@@ -7,13 +7,33 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
 # 1. Aktifkan Autolog
-# Autolog ini pintar, dia bakal otomatis nempel ke Run ID yang dibuat oleh 'mlflow run'
 mlflow.autolog()
 
 def main(train_data, test_data, target_column):
     # Baca data dari parameter input
     print(f"Loading data from: {train_data}")
-    df = pd.read_csv(train_data)
+    
+    # --- UPDATE BIAR AMAN ---
+    # Gunakan sep=None dan engine='python' biar dia deteksi otomatis (koma atau titik koma)
+    try:
+        df = pd.read_csv(train_data, sep=None, engine='python')
+    except:
+        # Fallback kalau error, coba baca standar
+        df = pd.read_csv(train_data)
+
+    # --- DEBUGGING (PENTING) ---
+    # Ini bakal nge-print nama-nama kolom ke log GitHub biar kita tahu isinya apa
+    print("DATA SHAPE:", df.shape)
+    print("COLUMNS FOUND:", df.columns.tolist())
+    
+    # Cek apakah target ada?
+    if target_column not in df.columns:
+        # Coba bersihkan spasi di nama kolom (kadang ada spasi nyempil: " Exited")
+        df.columns = df.columns.str.strip()
+        print("Cleaned Columns:", df.columns.tolist())
+        
+        if target_column not in df.columns:
+            raise KeyError(f"Kolom target '{target_column}' GAK KETEMU! Yang ada cuma: {df.columns.tolist()}")
 
     # Pisahkan Fitur dan Target
     X = df.drop(columns=[target_column])
@@ -22,10 +42,7 @@ def main(train_data, test_data, target_column):
     # Split Data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # --- BAGIAN YANG DIPERBAIKI (HAPUS start_run) ---
-    # Kita langsung training aja. Karena script ini dijalankan via 'mlflow run',
-    # dia otomatis sudah punya Active Run. Gak perlu bikin baru.
-    
+    # Training
     print("Starting training...")
     model = RandomForestClassifier(n_estimators=100)
     model.fit(X_train, y_train)
@@ -34,10 +51,6 @@ def main(train_data, test_data, target_column):
     predictions = model.predict(X_test)
     acc = accuracy_score(y_test, predictions)
     print(f"Model Accuracy: {acc}")
-    
-    # KITA TIDAK PERLU mlflow.log_metric manual karena sudah ada mlflow.autolog()
-    # Tapi kalau mau nambah log manual, langsung aja panggil (gak usah pake with start_run)
-    mlflow.log_metric("manual_accuracy", acc)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
