@@ -26,25 +26,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install mlflow scikit-learn pandas
 
-    # 4. JALANKAN MODEL (VERSI REVISI - WAJIB MLFLOW RUN)
+    # 4. JALANKAN MODEL (WAJIB MLFLOW RUN DENGAN PARAMETER)
     - name: Train Model with MLflow
       run: |
-        # PENTING: Ganti 'Membangun_model' sesuai nama folder kamu di GitHub
-        # (Kalau nama foldermu masih 'MLProject', ganti jadi 'cd MLProject')
-        cd Membangun_model 
+        # Masuk ke folder 'MLProject' (Sesuai nama folder di GitHub kamu)
+        cd MLProject
         
-        # Perintah ini yang diminta reviewer:
+        # Perintah ini yang diminta reviewer (MLflow run + Parameter):
         mlflow run . \
           -P train_data=bank_data_preprocessing.csv \
           -P test_data=bank_data_preprocessing.csv \
           -P target_column=Exited \
           --env-manager=local
 
-    # 5. SIMPAN HASIL
+    # 5. SIMPAN HASIL (Artifact)
     - name: Archive MLflow Artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: hasil-eksperimen-mlruns
-        # Sesuaikan path ini juga dengan nama foldermu
-        path: Membangun_model/mlruns
+        # Path disesuaikan dengan folder MLProject
+        path: MLProject/mlruns
